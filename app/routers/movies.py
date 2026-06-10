@@ -114,6 +114,8 @@ async def by_genre(genre_id: int, page: int = Query(1, ge=1)):
 async def movie_detail(movie_id: int):
     try:
         movie = await get_movie_detail(movie_id)
+        from app.routers.ratings import get_content_rating_stats
+        movie["user_rating"] = get_content_rating_stats("movie", movie_id)
         return {"movie": movie}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -138,6 +140,8 @@ async def movie_mood_profile(movie_id: int):
 async def tv_detail(tv_id: int):
     try:
         tv = await get_tv_detail(tv_id)
+        from app.routers.ratings import get_content_rating_stats
+        tv["user_rating"] = get_content_rating_stats("tv", tv_id)
         return {"movie": tv}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
