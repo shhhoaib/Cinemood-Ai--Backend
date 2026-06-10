@@ -3,7 +3,8 @@ import os
 import time
 from collections import defaultdict
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "user_data")
+from app.services.storage import DATA_DIR
+
 os.makedirs(DATA_DIR, exist_ok=True)
 
 

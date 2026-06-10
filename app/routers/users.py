@@ -12,6 +12,7 @@ from jose import jwt, JWTError
 
 from app.services.user_profile import _load as _load_profile, _save as _save_profile, _default as _default_profile
 from app.services.user_dna import analyze_user_dna
+from app.services.storage import DATA_DIR
 
 router = APIRouter()
 
@@ -19,7 +20,6 @@ SECRET_KEY = os.environ.get("JWT_SECRET", "cinemood-secret-key-change-in-product
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "user_data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 

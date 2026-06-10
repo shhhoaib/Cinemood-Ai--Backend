@@ -6,11 +6,11 @@ from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 from typing import Optional
 
-from app.routers.users import _load_users, _get_current_user
+from app.routers.users import _get_current_user
+from app.services.storage import DATA_DIR
 
 router = APIRouter()
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "user_data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 
