@@ -79,6 +79,26 @@ def get_current_user(authorization: str = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
+def _get_current_user(authorization: str):
+    if not authorization:
+        return None
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        return None
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        if not user_id:
+            return None
+        users = _load_users()
+        user = users.get(user_id)
+        if not user:
+            return None
+        return {**user, "id": user_id}
+    except JWTError:
+        return None
+
+
 # --- Models ---
 
 class RegisterRequest(BaseModel):

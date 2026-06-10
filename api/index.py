@@ -15,13 +15,14 @@ application.add_middleware(
     allow_headers=["*"],
 )
 
-from app.routers import mood, movies, chat, pakistani_dramas, recommendations, users
+from app.routers import mood, movies, chat, pakistani_dramas, recommendations, users, reviews
 application.include_router(mood.router, prefix="/api/mood")
 application.include_router(movies.router, prefix="/api/movies")
 application.include_router(chat.router, prefix="/api/chat")
 application.include_router(pakistani_dramas.router, prefix="/api")
 application.include_router(recommendations.router, prefix="/api")
 application.include_router(users.router, prefix="/api")
+application.include_router(reviews.router, prefix="/api")
 
 @application.get("/api/health")
 async def health():
