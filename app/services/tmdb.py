@@ -193,6 +193,10 @@ INDUSTRIES = {
     "pakistani": {"name": "Pakistani", "code": "ur", "flag": "\U0001f1f5\U0001f1f0", "description": "Urdu Cinema (Pakistan)", "region": "PK"},
     "bengali": {"name": "Bengali", "code": "bn", "flag": "\U0001f1e7\U0001f1e9", "description": "Bengali Cinema", "region": "IN"},
     "turkish": {"name": "Turkish", "code": "tr", "flag": "\U0001f1f9\U0001f1f7", "description": "Turkish Cinema & Series", "region": "TR"},
+    "japanese": {"name": "Japanese", "code": "ja", "flag": "\U0001f1ef\U0001f1f5", "description": "Japanese Cinema (Live Action)", "region": "JP"},
+    "spanish": {"name": "Spanish", "code": "es", "flag": "\U0001f1ea\U0001f1f8", "description": "Spanish Cinema", "region": "ES"},
+    "french": {"name": "French", "code": "fr", "flag": "\U0001f1eb\U0001f1f7", "description": "French Cinema", "region": "FR"},
+    "indian": {"name": "Indian", "code": "hi", "flag": "\U0001f1ee\U0001f1f3", "description": "Indian Cinema (All Languages)", "region": "IN"},
 }
 
 

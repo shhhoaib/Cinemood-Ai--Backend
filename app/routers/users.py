@@ -20,8 +20,6 @@ SECRET_KEY = os.environ.get("JWT_SECRET", "cinemood-secret-key-change-in-product
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
 
-os.makedirs(DATA_DIR, exist_ok=True)
-
 
 def _users_path():
     return os.path.join(DATA_DIR, "_users.json")
