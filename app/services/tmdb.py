@@ -335,6 +335,55 @@ def _search_yt_trailer(title: str, year: int | str = "") -> str | None:
     return None
 
 
+def _format_currency(amount: int) -> str:
+    if not amount or amount <= 0:
+        return ""
+    if amount >= 1_000_000_000:
+        return f"${amount / 1_000_000_000:.2f}B"
+    if amount >= 1_000_000:
+        return f"${amount / 1_000_000:.1f}M"
+    if amount >= 1_000:
+        return f"${amount / 1_000:.0f}K"
+    return f"${amount}"
+
+
+_omdb_cache = {}
+
+
+async def _fetch_omdb_ratings(imdb_id: str) -> dict:
+    omdb_key = os.getenv("OMDB_API_KEY")
+    if not omdb_key or not imdb_id:
+        return {}
+    if imdb_id in _omdb_cache:
+        return _omdb_cache[imdb_id]
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://www.omdbapi.com/",
+                params={"i": imdb_id, "apikey": omdb_key},
+                timeout=10,
+            )
+        if resp.status_code != 200:
+            return {}
+        data = resp.json()
+        if data.get("Response") != "True":
+            return {}
+        ratings = {"imdb": {}, "rotten_tomatoes": {}, "metacritic": {}}
+        if data.get("imdbRating") and data["imdbRating"] != "N/A":
+            ratings["imdb"] = {"rating": float(data["imdbRating"]), "votes": data.get("imdbVotes", "").replace(",", "")}
+        for r in data.get("Ratings", []):
+            if r["Source"] == "Rotten Tomatoes":
+                val = r["Value"].replace("%", "")
+                ratings["rotten_tomatoes"] = {"tomatometer": int(val) if val.isdigit() else None, "value": r["Value"]}
+            elif r["Source"] == "Metacritic":
+                val = r["Value"].split("/")[0]
+                ratings["metacritic"] = {"score": int(val) if val.isdigit() else None, "value": r["Value"]}
+        _omdb_cache[imdb_id] = ratings
+        return ratings
+    except Exception:
+        return {}
+
+
 async def get_movie_detail(movie_id: int) -> dict:
     async with httpx.AsyncClient() as client:
         resp = await client.get(
@@ -347,7 +396,18 @@ async def get_movie_detail(movie_id: int) -> dict:
     formatted["runtime"] = movie.get("runtime", 0)
     formatted["status"] = movie.get("status", "")
     formatted["budget"] = movie.get("budget", 0)
+    formatted["budget_formatted"] = _format_currency(movie.get("budget", 0))
     formatted["revenue"] = movie.get("revenue", 0)
+    formatted["revenue_formatted"] = _format_currency(movie.get("revenue", 0))
+    formatted["original_language"] = movie.get("original_language", "")
+    formatted["original_title"] = movie.get("original_title", "")
+    formatted["spoken_languages"] = [l["english_name"] for l in movie.get("spoken_languages", [])]
+    formatted["production_companies"] = [
+        {"name": c["name"], "logo": f"{IMG_BASE}/w92{c['logo_path']}" if c.get("logo_path") else None, "origin_country": c.get("origin_country", "")}
+        for c in movie.get("production_companies", [])[:5]
+    ]
+    formatted["production_countries"] = [c["name"] for c in movie.get("production_countries", [])]
+    formatted["homepage"] = movie.get("homepage", "")
     ext = movie.get("external_ids", {})
     formatted["external_ids"] = {
         "imdb": ext.get("imdb_id"),
@@ -359,17 +419,29 @@ async def get_movie_detail(movie_id: int) -> dict:
     formatted["imdb_url"] = f"https://www.imdb.com/title/{ext['imdb_id']}" if ext.get("imdb_id") else None
     formatted["tmdb_rating"] = movie.get("vote_average", 0)
     formatted["tmdb_votes"] = movie.get("vote_count", 0)
-    formatted["metacritic_score"] = movie.get("metacritic_score")
+    omdb_ratings = await _fetch_omdb_ratings(ext.get("imdb_id", ""))
+    formatted["imdb_rating"] = omdb_ratings.get("imdb", {}).get("rating")
+    formatted["imdb_votes"] = omdb_ratings.get("imdb", {}).get("votes")
+    formatted["rt_tomatometer"] = omdb_ratings.get("rotten_tomatoes", {}).get("tomatometer")
+    formatted["rt_value"] = omdb_ratings.get("rotten_tomatoes", {}).get("value")
+    formatted["metacritic_score"] = omdb_ratings.get("metacritic", {}).get("score")
+    formatted["metacritic_value"] = omdb_ratings.get("metacritic", {}).get("value")
     rd = movie.get("release_dates", {}).get("results", [])
     certification = ""
+    us_releases = []
     for country in rd:
         if country.get("iso_3166_1") == "US":
             for release in country.get("release_dates", []):
                 cert = release.get("certification", "")
-                if cert:
+                if cert and not certification:
                     certification = cert
-                    break
+                us_releases.append({
+                    "type": release.get("type", 0),
+                    "date": release.get("release_date", ""),
+                    "note": release.get("note", ""),
+                })
     formatted["certification"] = certification
+    formatted["us_releases"] = us_releases
     trailer_key = _pick_best_trailer(movie.get("videos", {}).get("results", []))
     if not trailer_key:
         trailer_key = _search_yt_trailer(movie.get("title", ""), movie.get("release_date", "")[:4])
@@ -383,12 +455,23 @@ async def get_movie_detail(movie_id: int) -> dict:
         }
         for c in movie.get("credits", {}).get("cast", [])[:12]
     ]
+    formatted["director"] = next(
+        ({"id": c["id"], "name": c["name"]} for c in movie.get("credits", {}).get("crew", []) if c.get("job") == "Director"),
+        None
+    )
     formatted["similar"] = [format_movie(r) for r in movie.get("similar", {}).get("results", [])[:8]]
     slug = re.sub(r'[^a-z0-9-]', '', movie['title'].lower().replace(' ', '-'))
     formatted["justwatch_url"] = f"https://www.justwatch.com/pk/movie/{slug}"
-    formatted["rotten_tomatoes_url"] = f"https://www.rottentomatoes.com/m/{slug}"
     
     providers = movie.get("watch/providers", {}).get("results", {})
+    all_regions = {}
+    for region_code, region_data in providers.items():
+        if region_data.get("flatrate") or region_data.get("rent") or region_data.get("buy"):
+            all_regions[region_code] = {
+                "flatrate": [p["provider_name"] for p in region_data.get("flatrate", [])],
+                "rent": [p["provider_name"] for p in region_data.get("rent", [])],
+                "buy": [p["provider_name"] for p in region_data.get("buy", [])],
+            }
     pk_providers = providers.get("PK", {})
     formatted["watch_providers"] = {
         "flatrate": [

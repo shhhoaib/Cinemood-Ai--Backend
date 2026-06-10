@@ -4,3 +4,5 @@ __pycache__/
 user_data/
 venv/
 .venv/
+
+.vercel
