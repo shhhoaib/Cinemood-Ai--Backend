@@ -134,43 +134,27 @@ class UpdateProfileRequest(BaseModel):
 
 @router.post("/users/register")
 async def register(req: RegisterRequest):
-    users = _load_users()
-    for uid, u in users.items():
-        if u.get("email", "").lower() == req.email.lower():
-            raise HTTPException(status_code=400, detail="Email already registered")
-    user_id = str(uuid.uuid4())
-    password_hash = _bcrypt.hashpw(req.password.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
-    now = time.time()
-    users[user_id] = {
-        "email": req.email.lower(),
-        "password_hash": password_hash,
-        "created_at": now,
-        "updated_at": now,
-    }
-    _save_users(users)
-    registry = _load_registry()
-    registry[req.email.lower()] = user_id
-    _save_registry(registry)
-    profile = _default_profile()
-    profile.update({
-        "name": req.name,
-        "email": req.email.lower(),
-        "age": req.age,
-        "favorite_genres": req.favorite_genres,
-        "favorite_actors": req.favorite_actors,
-        "favorite_actresses": req.favorite_actresses,
-        "favorite_directors": req.favorite_directors,
-        "favorite_writers": req.favorite_writers,
-        "bio": req.bio,
-        "created_at": now,
-    })
-    _save_profile(user_id, profile)
-    dna = analyze_user_dna(profile)
-    token = create_access_token(user_id)
-    return {
-        "token": token,
-        "user": {
-            "id": user_id,
+    import traceback
+    try:
+        users = _load_users()
+        for uid, u in users.items():
+            if u.get("email", "").lower() == req.email.lower():
+                raise HTTPException(status_code=400, detail="Email already registered")
+        user_id = str(uuid.uuid4())
+        password_hash = _bcrypt.hashpw(req.password.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
+        now = time.time()
+        users[user_id] = {
+            "email": req.email.lower(),
+            "password_hash": password_hash,
+            "created_at": now,
+            "updated_at": now,
+        }
+        _save_users(users)
+        registry = _load_registry()
+        registry[req.email.lower()] = user_id
+        _save_registry(registry)
+        profile = _default_profile()
+        profile.update({
             "name": req.name,
             "email": req.email.lower(),
             "age": req.age,
@@ -180,9 +164,31 @@ async def register(req: RegisterRequest):
             "favorite_directors": req.favorite_directors,
             "favorite_writers": req.favorite_writers,
             "bio": req.bio,
-        },
-        "dna": dna,
-    }
+            "created_at": now,
+        })
+        _save_profile(user_id, profile)
+        dna = analyze_user_dna(profile)
+        token = create_access_token(user_id)
+        return {
+            "token": token,
+            "user": {
+                "id": user_id,
+                "name": req.name,
+                "email": req.email.lower(),
+                "age": req.age,
+                "favorite_genres": req.favorite_genres,
+                "favorite_actors": req.favorite_actors,
+                "favorite_actresses": req.favorite_actresses,
+                "favorite_directors": req.favorite_directors,
+                "favorite_writers": req.favorite_writers,
+                "bio": req.bio,
+            },
+            "dna": dna,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
 
 
 @router.post("/users/login")
